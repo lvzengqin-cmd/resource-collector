@@ -252,3 +252,9 @@ class CollectorSystem:
 
 if __name__ == '__main__':
     CollectorSystem().run()
+
+# 支持通过 curl 手动触发:
+# curl -X POST https://api.github.com/repos/lvzengqin-cmd/resource-collector/dispatches \
+#   -H "Accept: application/vnd.github+json" \
+#   -H "Authorization: token YOUR_TOKEN" \
+#   -d '{"event_type": "manual-collection"}'
