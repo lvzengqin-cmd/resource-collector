@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日资源采集系统 - 仪表盘</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- 顶部导航 -->
+    <nav class="gradient-bg text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+                    </svg>
+                    <span class="text-xl font-bold">每日资源采集系统</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="syncStatus" class="text-sm opacity-80">
+                        🟢 已连接数据库
+                    </span>
+                    <button onclick="runManualTask()" class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm transition">
+                        🚀 立即采集
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 标签导航 -->
+    <div class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex space-x-8">
+                <a href="/" class="tab-link py-4 px-2 border-b-2 border-purple-500 text-purple-600 font-medium">
+                    📊 仪表盘
+                </a>
+                <a href="/config.html" class="tab-link py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                    ⚙️ 网盘配置
+                </a>
+                <a href="/logs.html" class="tab-link py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                    📋 任务日志
+                </a>
+                <a href="/submit.html" class="tab-link py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                    ➕ 手动提交
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- 统计卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-md p-6 card-hover transition-all duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">总资源数</p>
+                        <p id="statTotal" class="text-3xl font-bold text-gray-800 mt-1">-</p>
+                    </div>
+                    <div class="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">📦</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md p-6 card-hover transition-all duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">今日新增</p>
+                        <p id="statToday" class="text-3xl font-bold text-green-600 mt-1">-</p>
+                    </div>
+                    <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">📈</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md p-6 card-hover transition-all duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">已转存</p>
+                        <p id="statTransferred" class="text-3xl font-bold text-purple-600 mt-1">-</p>
+                    </div>
+                    <div class="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">✅</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md p-6 card-hover transition-all duration-300">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">待处理</p>
+                        <p id="statPending" class="text-3xl font-bold text-yellow-600 mt-1">-</p>
+                    </div>
+                    <div class="w-14 h-14 bg-yellow-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">⏳</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 网盘统计 -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">📊 各网盘统计</h3>
+                <button onclick="loadStats()" class="text-purple-600 hover:text-purple-800 text-sm">刷新 ↻</button>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center p-4 bg-blue-50 rounded-lg">
+                    <div class="text-3xl mb-2">🔵</div>
+                    <div class="text-sm text-gray-500">夸克网盘</div>
+                    <div class="text-2xl font-bold text-blue-600" id="panQuark">0</div>
+                </div>
+                <div class="text-center p-4 bg-green-50 rounded-lg">
+                    <div class="text-3xl mb-2">🟢</div>
+                    <div class="text-sm text-gray-500">百度网盘</div>
+                    <div class="text-2xl font-bold text-green-600" id="panBaidu">0</div>
+                </div>
+                <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                    <div class="text-3xl mb-2">🟡</div>
+                    <div class="text-sm text-gray-500">UC网盘</div>
+                    <div class="text-2xl font-bold text-yellow-600" id="panUC">0</div>
+                </div>
+                <div class="text-center p-4 bg-purple-50 rounded-lg">
+                    <div class="text-3xl mb-2">🟣</div>
+                    <div class="text-sm text-gray-500">迅雷网盘</div>
+                    <div class="text-2xl font-bold text-purple-600" id="panThunder">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最近任务日志 -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">📋 最近任务</h3>
+                <button onclick="loadTaskLogs()" class="text-purple-600 hover:text-purple-800 text-sm">查看全部</button>
+            </div>
+            <div id="recentTasks" class="space-y-3">
+                <div class="text-center py-4 text-gray-400">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 最近资源 -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">📋 最近资源</h3>
+                <a href="/submit.html" class="text-purple-600 hover:text-purple-800 text-sm">➕ 添加资源</a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-sm font-medium text-gray-500">标题</th>
+                            <th class="px-4 py-3 text-sm font-medium text-gray-500">网盘</th>
+                            <th class="px-4 py-3 text-sm font-medium text-gray-500">状态</th>
+                            <th class="px-4 py-3 text-sm font-medium text-gray-500">时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resourceList" class="divide-y divide-gray-100">
+                        <tr>
+                            <td colspan="4" class="px-4 py-8 text-center text-gray-400">加载中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- 底部 -->
+    <footer class="bg-white border-t mt-12 py-6">
+        <div class="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>每日资源采集系统 © 2024 | 最后更新: <span id="lastUpdate">-</span></p>
+            <p class="mt-1 text-xs">数据自动同步至 CY资源宝库</p>
+        </div>
+    </footer>
+
+    <script>
+        // Supabase 配置
+        const SUPABASE_URL = 'https://musrilmjolaquhnfqjdu.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11c3JpbG1qb2xhcWhuZnFqZHVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTYyMzg3MDAsImV4cCI6MjAzMTgxNDcwMH0.gLl4KZJ6LK7sRBB5c8GJ4I0i_Xf6X8KQ8TqF6v6Q5r0';
+
+        let supabase;
+
+        // 初始化
+        async function init() {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            await loadStats();
+            await loadTaskLogs();
+            await loadRecentResources();
+            
+            // 每30秒刷新统计
+            setInterval(loadStats, 30000);
+        }
+
+        // 加载统计数据
+        async function loadStats() {
+            try {
+                const { count: total } = await supabase
+                    .from('resources')
+                    .select('*', { count: 'exact', head: true });
+
+                const { count: transferred } = await supabase
+                    .from('resources')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('status', 'transferred');
+
+                const { count: pending } = await supabase
+                    .from('resources')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('status', 'pending');
+
+                const today = new Date().toISOString().split('T')[0];
+                const { count: todayCount } = await supabase
+                    .from('resources')
+                    .select('*', { count: 'exact', head: true })
+                    .gte('created_at', today + 'T00:00:00');
+
+                document.getElementById('statTotal').textContent = total || 0;
+                document.getElementById('statToday').textContent = todayCount || 0;
+                document.getElementById('statTransferred').textContent = transferred || 0;
+                document.getElementById('statPending').textContent = pending || 0;
+
+                // 各网盘统计
+                const panTypes = ['quark', 'baidu', 'uc', 'thunder'];
+                for (const pan of panTypes) {
+                    const { count } = await supabase
+                        .from('resources')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('pan_type', pan);
+                    document.getElementById('pan' + pan.charAt(0).toUpperCase() + pan.slice(1)).textContent = count || 0;
+                }
+
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleString('zh-CN');
+            } catch (error) {
+                console.error('加载统计失败:', error);
+                document.getElementById('syncStatus').textContent = '🔴 连接失败';
+            }
+        }
+
+        // 加载最近任务
+        async function loadTaskLogs() {
+            try {
+                const { data, error } = await supabase
+                    .from('task_logs')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+
+                if (error) throw error;
+
+                const container = document.getElementById('recentTasks');
+                
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div class="text-center py-4 text-gray-400">暂无任务记录</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(log => {
+                    const summary = typeof log.summary === 'string' ? JSON.parse(log.summary) : (log.summary || {});
+                    const collected = summary.collected || 0;
+                    return `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center">
+                                ${getStatusIcon(log.status)}
+                                <div class="ml-3">
+                                    <div class="font-medium">${getTaskTypeName(log.task_type)}</div>
+                                    <div class="text-xs text-gray-500">${formatTime(log.start_time)}</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                ${collected > 0 ? `<span class="text-green-600 text-sm">+${collected}个</span>` : ''}
+                                ${log.duration ? `<div class="text-xs text-gray-400">${log.duration}秒</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('加载任务日志失败:', error);
+            }
+        }
+
+        // 加载最近资源
+        async function loadRecentResources() {
+            try {
+                const { data, error } = await supabase
+                    .from('resources')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+
+                if (error) throw error;
+
+                const tbody = document.getElementById('resourceList');
+                
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">暂无资源，点击上方按钮添加</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.map(r => `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-gray-800 truncate max-w-xs" title="${r.title || ''}">${r.title || '无标题'}</div>
+                            <div class="text-xs text-gray-400 truncate max-w-xs" title="${r.pan_link || r.original_link || ''}">${r.pan_link || r.original_link || '-'}</div>
+                        </td>
+                        <td class="px-4 py-3">${getPanBadge(r.pan_type)}</td>
+                        <td class="px-4 py-3">${getStatusBadge(r.status)}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500">${formatTime(r.created_at)}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('加载资源失败:', error);
+            }
+        }
+
+        // 手动运行任务
+        async function runManualTask() {
+            if (!confirm('将在后台启动采集任务，是否继续？')) return;
+            
+            try {
+                const { error } = await supabase
+                    .from('task_logs')
+                    .insert([{
+                        task_type: 'manual',
+                        status: 'running',
+                        start_time: new Date().toISOString()
+                    }]);
+                
+                if (error) throw error;
+                
+                alert('✅ 任务已启动！请稍后在任务日志中查看结果。');
+                loadTaskLogs();
+            } catch (error) {
+                alert('❌ 启动失败: ' + error.message);
+            }
+        }
+
+        // 辅助函数
+        function getStatusIcon(status) {
+            const icons = {
+                'running': '<span class="animate-pulse">🔄</span>',
+                'success': '<span>✅</span>',
+                'failed': '<span>❌</span>'
+            };
+            return icons[status] || '<span>⏳</span>';
+        }
+
+        function getTaskTypeName(type) {
+            const names = {
+                'collect': '🔍 自动采集',
+                'transfer': '📤 转存任务',
+                'manual': '✋ 手动触发',
+                'all': '🔄 完整任务'
+            };
+            return names[type] || '📋 任务';
+        }
+
+        function getPanBadge(type) {
+            const badges = {
+                'quark': '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">🔵 夸克</span>',
+                'baidu': '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">🟢 百度</span>',
+                'uc': '<span class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs">🟡 UC</span>',
+                'thunder': '<span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">🟣 迅雷</span>'
+            };
+            return badges[type] || '<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">❓ 未知</span>';
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                'pending': '<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">⏳ 待处理</span>',
+                'transferring': '<span class="px-2 py-1 bg-blue-100 text-blue-600 rounded text-xs">🔄 转存中</span>',
+                'transferred': '<span class="px-2 py-1 bg-green-100 text-green-600 rounded text-xs">✅ 已转存</span>',
+                'failed': '<span class="px-2 py-1 bg-red-100 text-red-600 rounded text-xs">❌ 失败</span>'
+            };
+            return badges[status] || badges['pending'];
+        }
+
+        function formatTime(timeStr) {
+            if (!timeStr) return '-';
+            const date = new Date(timeStr);
+            return date.toLocaleString('zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // 启动
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
