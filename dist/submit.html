@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手动提交 - 每日资源采集系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- 顶部导航 -->
+    <nav class="gradient-bg text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
+                    </svg>
+                    <span class="text-xl font-bold">每日资源采集系统</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 标签导航 -->
+    <div class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex space-x-8">
+                <a href="/" class="tab-link py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                    📊 仪表盘
+                </a>
+                <a href="/config.html" class="tab-link py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                    ⚙️ 网盘配置
+                </a>
+                <a href="/logs.html" class="tab-link py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                    📋 任务日志
+                </a>
+                <a href="/submit.html" class="tab-link py-4 px-2 border-b-2 border-purple-500 text-purple-600 font-medium">
+                    ➕ 手动提交
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- 说明 -->
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+            <div class="flex">
+                <span class="text-2xl mr-3">💡</span>
+                <div>
+                    <h3 class="font-semibold text-blue-800">使用说明</h3>
+                    <p class="text-sm text-blue-600 mt-1">
+                        将包含网盘链接的文本粘贴到下方，系统会自动识别夸克、百度、UC、迅雷等网盘链接并添加到数据库。
+                        支持带提取码的链接。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 提交表单 -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+            <h3 class="text-lg font-semibold mb-4">📝 提交资源</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-2">资源标题</label>
+                    <input id="resourceTitle" type="text" class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="输入资源标题">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-2">资源描述</label>
+                    <textarea id="resourceDesc" rows="3" class="w-full px-4 py-3 border rounded-lg" placeholder="资源简介（可选）"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-2">网盘链接（支持粘贴多个链接，每行一个）</label>
+                    <textarea id="panLinks" rows="6" class="w-full px-4 py-3 border rounded-lg font-mono text-sm" placeholder="支持格式：
+https://pan.quark.cn/s/xxxxxx
+https://pan.baidu.com/s/xxxxxx 提取码: xxxx
+夸克链接: https://pan.quark.cn/s/xxxxxx?pwd=xxxx"></textarea>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="previewLinks()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition text-sm flex items-center">
+                        👁️ 预览识别结果
+                    </button>
+                    <button onclick="submitResource()" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition font-medium flex items-center">
+                        <span class="mr-2">🚀</span> 提交资源
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 预览结果 -->
+        <div id="previewSection" class="bg-white rounded-xl shadow-md p-6 mb-6 hidden">
+            <h3 class="text-lg font-semibold mb-4">🔍 识别结果预览</h3>
+            <div id="previewContent" class="space-y-3"></div>
+            <div class="mt-4 flex justify-between items-center">
+                <span class="text-gray-600">共识别到 <span id="linkCount" class="font-bold text-purple-600">0</span> 个网盘链接</span>
+                <button onclick="confirmSubmit()" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium">
+                    ✅ 确认提交
+                </button>
+            </div>
+        </div>
+
+        <!-- 最近提交 -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-semibold mb-4">📋 最近提交</h3>
+            <div id="recentSubmissions" class="space-y-3">
+                <div class="text-center py-4 text-gray-400">加载中...</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const SUPABASE_URL = 'https://musrilmjolaquhnfqjdu.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11c3JpbG1qb2xhcWhuZnFqZHVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTYyMzg3MDAsImV4cCI6MjAzMTgxNDcwMH0.gLl4KZJ6LK7sRBB5c8GJ4I0i_Xf6X8KQ8TqF6v6Q5r0';
+
+        let supabase;
+        let currentLinks = [];
+
+        async function init() {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            await loadRecentSubmissions();
+        }
+
+        // 检测网盘类型
+        function detectPanType(url) {
+            url = url.toLowerCase();
+            if (url.includes('quark.cn') || url.includes('pan.quark')) return 'quark';
+            if (url.includes('baidu.com') || url.includes('pan.baidu')) return 'baidu';
+            if (url.includes('uc.cn') || url.includes('drive.uc')) return 'uc';
+            if (url.includes('xunlei.com') || url.includes('pan.xunlei')) return 'thunder';
+            return null;
+        }
+
+        // 提取网盘链接
+        function extractLinks(text) {
+            const results = [];
+            const lines = text.split('\n');
+
+            for (const line of lines) {
+                // 提取URL
+                const urlMatch = line.match(/https?:\/\/[^\s<>"']+/);
+                if (!urlMatch) continue;
+
+                const url = urlMatch[0].split('?')[0].split(')')[0].trim();
+                const panType = detectPanType(url);
+
+                if (!panType) continue;
+
+                // 提取提取码
+                let pwd = '';
+                const pwdMatch = line.match(/[?&]pwd=([a-zA-Z0-9]{4})|提取码[：:]\s*([a-zA-Z0-9]{4})|密码[：:]\s*([a-zA-Z0-9]{4})/i);
+                if (pwdMatch) {
+                    pwd = pwdMatch[1] || pwdMatch[2] || pwdMatch[3] || '';
+                }
+
+                results.push({ url, pan_type: panType, pwd });
+            }
+
+            return results;
+        }
+
+        // 预览链接
+        function previewLinks() {
+            const title = document.getElementById('resourceTitle').value.trim();
+            const desc = document.getElementById('resourceDesc').value.trim();
+            const linksText = document.getElementById('panLinks').value;
+
+            if (!linksText.trim()) {
+                alert('请输入网盘链接');
+                return;
+            }
+
+            currentLinks = extractLinks(linksText);
+
+            const previewSection = document.getElementById('previewSection');
+            const previewContent = document.getElementById('previewContent');
+            const linkCount = document.getElementById('linkCount');
+
+            if (currentLinks.length === 0) {
+                previewSection.classList.remove('hidden');
+                previewContent.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <div class="text-4xl mb-2">🔍</div>
+                        <p>未识别到有效的网盘链接</p>
+                        <p class="text-sm mt-1">支持：夸克网盘、百度网盘、UC网盘、迅雷网盘</p>
+                    </div>
+                `;
+                linkCount.textContent = '0';
+                return;
+            }
+
+            previewSection.classList.remove('hidden');
+            linkCount.textContent = currentLinks.length;
+
+            // 分组显示
+            const grouped = {};
+            currentLinks.forEach(link => {
+                if (!grouped[link.pan_type]) grouped[link.pan_type] = [];
+                grouped[link.pan_type].push(link);
+            });
+
+            const panNames = {
+                'quark': { name: '夸克网盘', icon: '🔵', color: 'blue' },
+                'baidu': { name: '百度网盘', icon: '🟢', color: 'green' },
+                'uc': { name: 'UC网盘', icon: '🟡', color: 'yellow' },
+                'thunder': { name: '迅雷网盘', icon: '🟣', color: 'purple' }
+            };
+
+            previewContent.innerHTML = Object.entries(grouped).map(([type, links]) => {
+                const info = panNames[type];
+                return `
+                    <div class="p-4 bg-${info.color}-50 rounded-lg">
+                        <div class="font-medium mb-2">${info.icon} ${info.name} (${links.length}个)</div>
+                        ${links.map((link, idx) => `
+                            <div class="flex items-start bg-white p-2 rounded mt-2">
+                                <span class="text-gray-400 mr-2">${idx + 1}.</span>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm truncate" title="${link.url}">${link.url}</div>
+                                    ${link.pwd ? `<div class="text-xs text-gray-500">提取码: <span class="font-mono bg-gray-100 px-1 rounded">${link.pwd}</span></div>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 提交资源
+        async function submitResource() {
+            const title = document.getElementById('resourceTitle').value.trim();
+            const desc = document.getElementById('resourceDesc').value.trim();
+            const linksText = document.getElementById('panLinks').value;
+
+            if (!linksText.trim()) {
+                alert('请输入网盘链接');
+                return;
+            }
+
+            const links = extractLinks(linksText);
+
+            if (links.length === 0) {
+                alert('未识别到有效的网盘链接');
+                return;
+            }
+
+            try {
+                // 插入资源
+                const resources = links.map(link => ({
+                    title: title || `资源_${new Date().toISOString()}`,
+                    description: desc,
+                    pan_type: link.pan_type,
+                    original_link: link.url,
+                    extract_code: link.pwd,
+                    status: 'pending',
+                    views: 0
+                }));
+
+                const { error } = await supabase
+                    .from('resources')
+                    .insert(resources);
+
+                if (error) throw error;
+
+                alert(`✅ 成功添加 ${links.length} 个资源！`);
+                
+                // 清空表单
+                document.getElementById('resourceTitle').value = '';
+                document.getElementById('resourceDesc').value = '';
+                document.getElementById('panLinks').value = '';
+                document.getElementById('previewSection').classList.add('hidden');
+
+                // 刷新列表
+                loadRecentSubmissions();
+            } catch (error) {
+                alert('❌ 提交失败: ' + error.message);
+            }
+        }
+
+        // 确认提交（从预览）
+        async function confirmSubmit() {
+            await submitResource();
+        }
+
+        // 加载最近提交
+        async function loadRecentSubmissions() {
+            try {
+                const { data, error } = await supabase
+                    .from('resources')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+
+                const container = document.getElementById('recentSubmissions');
+
+                if (error || !data || data.length === 0) {
+                    container.innerHTML = '<div class="text-center py-4 text-gray-400">暂无提交记录</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(r => `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                        <div class="flex items-center">
+                            ${getPanIcon(r.pan_type)}
+                            <div class="ml-3">
+                                <div class="font-medium text-gray-800 truncate max-w-xs">${r.title || '无标题'}</div>
+                                <div class="text-xs text-gray-500 truncate max-w-xs">${r.original_link || '-'}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            ${getStatusBadge(r.status)}
+                            <span class="text-xs text-gray-400">${formatTime(r.created_at)}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('加载失败:', error);
+            }
+        }
+
+        function getPanIcon(type) {
+            const icons = {
+                'quark': '<span class="text-xl">🔵</span>',
+                'baidu': '<span class="text-xl">🟢</span>',
+                'uc': '<span class="text-xl">🟡</span>',
+                'thunder': '<span class="text-xl">🟣</span>'
+            };
+            return icons[type] || '<span class="text-xl">⚪</span>';
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                'pending': '<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">⏳ 待处理</span>',
+                'transferred': '<span class="px-2 py-1 bg-green-100 text-green-600 rounded text-xs">✅ 已转存</span>',
+                'failed': '<span class="px-2 py-1 bg-red-100 text-red-600 rounded text-xs">❌ 失败</span>'
+            };
+            return badges[status] || badges['pending'];
+        }
+
+        function formatTime(timeStr) {
+            if (!timeStr) return '-';
+            const date = new Date(timeStr);
+            return date.toLocaleString('zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
