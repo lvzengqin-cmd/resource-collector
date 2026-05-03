@@ -37,22 +37,22 @@ class Resource:
     """资源数据模型 - 与数据库表结构匹配"""
     title: str
     pan_type: str
-    original_link: str
-    pan_link: Optional[str] = None  # 保存时使用
+    pan_link: str  # 网盘链接（原始链接保存到这里）
+    original_link: str = ""  # 兼容字段，内部使用
     extract_code: Optional[str] = None
     description: Optional[str] = None
+    category: str = "其他"
     status: str = "pending"
     views: int = 0
-    share_link: Optional[str] = None  # 数据库新增字段
+    share_link: Optional[str] = None  # 内部使用，不保存到DB
     # 内部使用
     _link_hash: str = field(default="", repr=False)
 
     def __post_init__(self):
         # 生成链接唯一标识
-        if self.pan_link:
-            self._link_hash = hashlib.md5(self.pan_link.encode()).hexdigest()
-        elif self.original_link:
-            self._link_hash = hashlib.md5(self.original_link.encode()).hexdigest()
+        link = self.pan_link or self.original_link
+        if link:
+            self._link_hash = hashlib.md5(link.encode()).hexdigest()
 
 class BaseCollector(ABC):
     """采集器基类"""
@@ -93,7 +93,7 @@ class BaseCollector(ABC):
                 resource = Resource(
                     title=link_info.get('title', '未知资源')[:200],  # 限制标题长度
                     pan_type=self.name.lower(),
-                    original_link=url,
+                    pan_link=url,  # 原始链接保存到pan_link
                     description=link_info.get('desc', '')[:500]  # 限制描述长度
                 )
                 resources.append(resource)
@@ -253,7 +253,7 @@ class KdocsCollector(BaseCollector):
                 resource = Resource(
                     title=link_info.get('title', '未知资源')[:200],
                     pan_type='kdocs',
-                    original_link=url,
+                    pan_link=url,
                     description=link_info.get('desc', '')[:500]
                 )
                 resources.append(resource)
@@ -310,17 +310,13 @@ class DatabaseManager:
                 print(f"  ⏭️ 资源已存在，跳过: {existing.get('title', resource.title)}")
                 return False
             
-            # 插入新资源
+            # 插入新资源（与 Supabase resources 表完全匹配）
             data = {
                 'title': resource.title,
                 'description': resource.description or '',
                 'category': self._detect_category(resource.title),
-                'pan_type': resource.pan_type,
                 'pan_link': resource.pan_link,
-                'original_link': resource.original_link,
                 'extract_code': resource.extract_code or '',
-                'share_link': resource.share_link or '',
-                'status': 'pending',
                 'views': 0,
                 'created_at': datetime.now().isoformat()
             }
@@ -385,8 +381,8 @@ class CollectorSystem:
     def _deduplicate(self, resource: Resource) -> bool:
         """去重检查，返回True表示需要处理"""
         link = resource.pan_link or resource.original_link
-        link_hash = hashlib.md5(link.encode()).hexdigest()
-        
+        link_hash = hashlib.md5(link.encode()).hexdigest() if link else ""
+
         if link_hash in self.seen_links:
             self.results['duplicates'] += 1
             return False

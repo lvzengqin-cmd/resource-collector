@@ -251,14 +251,21 @@
                 document.getElementById('statTransferred').textContent = transferred || 0;
                 document.getElementById('statPending').textContent = pending || 0;
 
-                // 各网盘统计
-                const panTypes = ['quark', 'baidu', 'uc', 'thunder'];
+                // 遍历统计每个网盘类型的数量
+                const panTypes = ['quark', 'baidu', 'uc', 'thunder', 'kdocs'];
                 for (const pan of panTypes) {
-                    const { count } = await supabase
-                        .from('resources')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('pan_type', pan);
-                    document.getElementById('pan' + pan.charAt(0).toUpperCase() + pan.slice(1)).textContent = count || 0;
+                    // 根据pan_link判断
+                    const { data: allData } = await supabase.from('resources').select('pan_link');
+                    const count = allData?.filter(r => {
+                        const link = (r.pan_link || '').toLowerCase();
+                        if (pan === 'quark') return link.includes('quark') || link.includes('pan.quark');
+                        if (pan === 'baidu') return link.includes('baidu') || link.includes('pan.baidu');
+                        if (pan === 'uc') return link.includes('uc.cn');
+                        if (pan === 'thunder') return link.includes('xunlei') || link.includes('xlnet');
+                        if (pan === 'kdocs') return link.includes('kdocs');
+                        return false;
+                    }).length || 0;
+                    document.getElementById('pan' + pan.charAt(0).toUpperCase() + pan.slice(1)).textContent = count;
                 }
 
                 document.getElementById('lastUpdate').textContent = new Date().toLocaleString('zh-CN');
@@ -334,7 +341,7 @@
                             <div class="font-medium text-gray-800 truncate max-w-xs" title="${r.title || ''}">${r.title || '无标题'}</div>
                             <div class="text-xs text-gray-400 truncate max-w-xs" title="${r.pan_link || r.original_link || ''}">${r.pan_link || r.original_link || '-'}</div>
                         </td>
-                        <td class="px-4 py-3">${getPanBadge(r.pan_type)}</td>
+                        <td class="px-4 py-3">${getPanBadge(r.pan_link)}</td>
                         <td class="px-4 py-3">${getStatusBadge(r.status)}</td>
                         <td class="px-4 py-3 text-sm text-gray-500">${formatTime(r.created_at)}</td>
                     </tr>
@@ -386,14 +393,21 @@
             return names[type] || '📋 任务';
         }
 
-        function getPanBadge(type) {
-            const badges = {
-                'quark': '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">🔵 夸克</span>',
-                'baidu': '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">🟢 百度</span>',
-                'uc': '<span class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs">🟡 UC</span>',
-                'thunder': '<span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">🟣 迅雷</span>'
-            };
-            return badges[type] || '<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">❓ 未知</span>';
+        function getPanBadge(panLink) {
+            // 根据链接判断网盘类型
+            if (!panLink) return '<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">📦 其他</span>';
+            const link = panLink.toLowerCase();
+            if (link.includes('quark') || link.includes('pan.quark')) 
+                return '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">🔵 夸克</span>';
+            if (link.includes('baidu') || link.includes('pan.baidu')) 
+                return '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">🟢 百度</span>';
+            if (link.includes('uc.cn')) 
+                return '<span class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs">🟡 UC</span>';
+            if (link.includes('xunlei') || link.includes('xlnet')) 
+                return '<span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">🟣 迅雷</span>';
+            if (link.includes('kdocs')) 
+                return '<span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs">📘 Kdocs</span>';
+            return '<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">📦 其他</span>';
         }
 
         function getStatusBadge(status) {
@@ -436,7 +450,7 @@
                     ` : ''}
                     <div>
                         <label class="text-sm text-gray-500">网盘类型</label>
-                        <p class="mt-1">${getPanBadge(resource.pan_type)}</p>
+                        <p class="mt-1">${getPanBadge(resource.pan_link)}</p>
                     </div>
                     <div>
                         <label class="text-sm text-gray-500">网盘链接</label>
