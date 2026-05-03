@@ -185,6 +185,47 @@
             </div>
         </div>
 
+        <!-- 定时任务配置 -->
+        <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">⏰ 定时任务配置</h3>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">执行频率</label>
+                    <select id="cronFrequency" onchange="toggleCustomTime()" class="w-full px-3 py-2 border rounded-lg">
+                        <option value="daily">每天</option>
+                        <option value="twice">每天两次</option>
+                        <option value="three">每天三次</option>
+                        <option value="custom">自定义</option>
+                    </select>
+                </div>
+                <div id="customTimeSection" class="hidden">
+                    <label class="block text-sm text-gray-600 mb-1">Cron表达式</label>
+                    <input id="cronExpression" type="text" class="w-full px-3 py-2 border rounded-lg" placeholder="0 9 * * *">
+                    <p class="text-xs text-gray-400 mt-1">格式: 分 时 日 月 周 (UTC时间)</p>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">执行时段</label>
+                    <select id="executionPeriod" class="w-full px-3 py-2 border rounded-lg">
+                        <option value="morning">上午 (6:00-12:00)</option>
+                        <option value="afternoon">下午 (12:00-18:00)</option>
+                        <option value="evening">晚上 (18:00-24:00)</option>
+                        <option value="all">全天</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mt-4 flex items-center justify-between">
+                <div class="text-sm">
+                    <span class="text-gray-500">当前配置：</span>
+                    <span id="currentCron" class="font-mono bg-gray-100 px-2 py-1 rounded">每天 09:00 (北京时间)</span>
+                </div>
+                <button onclick="saveCronConfig()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                    💾 保存定时配置
+                </button>
+            </div>
+        </div>
+
         <!-- 采集源配置 -->
         <div class="bg-white rounded-xl shadow-md p-6">
             <div class="flex justify-between items-center mb-4">
@@ -388,7 +429,181 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', init);
+        // 定时任务配置
+        async function loadCronConfig() {
+            try {
+                const { data } = await supabase
+                    .from('system_config')
+                    .select('*')
+                    .eq('key', 'cron_schedule')
+                    .single();
+
+                if (data && data.value) {
+                    const config = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+                    document.getElementById('cronFrequency').value = config.frequency || 'daily';
+                    document.getElementById('executionPeriod').value = config.period || 'morning';
+                    document.getElementById('cronExpression').value = config.expression || '0 1 * * *';
+                    
+                    if (config.frequency === 'custom') {
+                        document.getElementById('customTimeSection').classList.remove('hidden');
+                        document.getElementById('customTimeSection').classList.add('flex');
+                    }
+                    
+                    updateCronDisplay(config);
+                }
+            } catch (error) {
+                console.log('加载定时配置失败，使用默认配置');
+            }
+        }
+
+        function toggleCustomTime() {
+            const frequency = document.getElementById('cronFrequency').value;
+            const customSection = document.getElementById('customTimeSection');
+            if (frequency === 'custom') {
+                customSection.classList.remove('hidden');
+                customSection.classList.add('flex');
+            } else {
+                customSection.classList.add('hidden');
+                customSection.classList.remove('flex');
+            }
+        }
+
+        function updateCronDisplay(config) {
+            const display = document.getElementById('currentCron');
+            const frequency = config.frequency || 'daily';
+            const period = config.period || 'morning';
+            
+            const periodNames = {
+                'morning': '上午',
+                'afternoon': '下午',
+                'evening': '晚上',
+                'all': '全天'
+            };
+            
+            const frequencyNames = {
+                'daily': '每天',
+                'twice': '每天两次',
+                'three': '每天三次',
+                'custom': '自定义'
+            };
+            
+            let timeText = '';
+            switch(frequency) {
+                case 'daily': timeText = '09:00'; break;
+                case 'twice': timeText = '09:00, 14:00'; break;
+                case 'three': timeText = '09:00, 14:00, 20:00'; break;
+                case 'custom': timeText = config.expression || '自定义'; break;
+            }
+            
+            display.textContent = `${frequencyNames[frequency]} ${timeText} (北京时间)`;
+        }
+
+        async function saveCronConfig() {
+            const frequency = document.getElementById('cronFrequency').value;
+            const period = document.getElementById('executionPeriod').value;
+            const expression = document.getElementById('cronExpression').value;
+
+            // 计算UTC时间的cron表达式
+            let utcExpression = '0 1 * * *'; // 默认北京时间9点 = UTC 1点
+            switch(frequency) {
+                case 'daily':
+                    utcExpression = '0 1 * * *';
+                    break;
+                case 'twice':
+                    utcExpression = '0 1,6 * * *'; // UTC 1点和6点
+                    break;
+                case 'three':
+                    utcExpression = '0 1,6,12 * * *'; // UTC 1点、6点、12点
+                    break;
+                case 'custom':
+                    utcExpression = expression || '0 1 * * *';
+                    break;
+            }
+
+            const config = {
+                frequency,
+                period,
+                expression,
+                utc_cron: utcExpression,
+                updated_at: new Date().toISOString()
+            };
+
+            try {
+                const { error } = await supabase
+                    .from('system_config')
+                    .upsert({
+                        key: 'cron_schedule',
+                        value: config,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'key' });
+
+                if (error) throw error;
+
+                updateCronDisplay(config);
+                alert('✅ 定时配置保存成功！\n\n提示：定时任务的执行依赖于GitHub Actions工作流，保存后下次自动执行时生效。');
+
+                // 更新GitHub Actions工作流
+                await updateGitHubWorkflow(utcExpression);
+            } catch (error) {
+                alert('❌ 保存失败: ' + error.message);
+            }
+        }
+
+        async function updateGitHubWorkflow(cronExpression) {
+            // 通过API更新GitHub Actions工作流文件
+            const workflowPath = '.github/workflows/collector.yml';
+            const token = prompt('请输入GitHub Personal Access Token以更新定时任务（可选）:\n\n如果没有Token，定时任务将使用默认配置。\n\n获取Token: https://github.com/settings/tokens');
+            
+            if (!token) {
+                console.log('用户取消更新工作流');
+                return;
+            }
+
+            try {
+                // 获取当前工作流内容
+                const response = await fetch(`https://api.github.com/repos/lvzengqin-cmd/resource-collector/contents/${workflowPath}`, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                const currentFile = await response.json();
+                const currentContent = atob(currentFile.content);
+
+                // 更新cron表达式
+                const updatedContent = currentContent.replace(
+                    /cron:\s*['\"][^'\"]+['\"]/,
+                    `cron: '${cronExpression}'`
+                );
+
+                // 提交更新
+                await fetch(`https://api.github.com/repos/lvzengqin-cmd/resource-collector/contents/${workflowPath}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify({
+                        message: 'chore: 更新定时任务配置',
+                        content: btoa(updatedContent),
+                        sha: currentFile.sha
+                    })
+                });
+
+                alert('✅ GitHub Actions工作流已更新！');
+            } catch (error) {
+                console.error('更新工作流失败:', error);
+                alert('⚠️ 工作流更新失败，但定时配置已保存到数据库');
+            }
+        }
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            await init();
+            await loadCronConfig();
+        });
     </script>
 </body>
 </html>
