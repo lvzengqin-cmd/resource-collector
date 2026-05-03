@@ -179,6 +179,24 @@
         </div>
     </main>
 
+    <!-- 资源详情弹窗 -->
+    <div id="resourceModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50" onclick="closeModal(event)">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-semibold">📋 资源详情</h3>
+                <button onclick="closeResourceModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div class="p-6">
+                <div id="modalContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 复制成功提示 -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg hidden z-50">
+        ✅ 已复制到剪贴板
+    </div>
+
     <!-- 底部 -->
     <footer class="bg-white border-t mt-12 py-6">
         <div class="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
@@ -311,7 +329,7 @@
                 }
 
                 tbody.innerHTML = data.map(r => `
-                    <tr class="hover:bg-gray-50">
+                    <tr class="hover:bg-gray-50 cursor-pointer" onclick="showResourceDetail(${JSON.stringify(r).replace(/'/g, "&#39;")})">
                         <td class="px-4 py-3">
                             <div class="font-medium text-gray-800 truncate max-w-xs" title="${r.title || ''}">${r.title || '无标题'}</div>
                             <div class="text-xs text-gray-400 truncate max-w-xs" title="${r.pan_link || r.original_link || ''}">${r.pan_link || r.original_link || '-'}</div>
@@ -397,6 +415,139 @@
                 hour: '2-digit',
                 minute: '2-digit'
             });
+        }
+
+        // 显示资源详情弹窗（同时增加浏览量）
+        async function showResourceDetail(resource) {
+            const modal = document.getElementById('resourceModal');
+            const content = document.getElementById('modalContent');
+
+            content.innerHTML = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm text-gray-500">标题</label>
+                        <p class="font-medium text-gray-800">${resource.title || '无标题'}</p>
+                    </div>
+                    ${resource.description ? `
+                    <div>
+                        <label class="text-sm text-gray-500">描述</label>
+                        <p class="text-gray-600 text-sm">${resource.description}</p>
+                    </div>
+                    ` : ''}
+                    <div>
+                        <label class="text-sm text-gray-500">网盘类型</label>
+                        <p class="mt-1">${getPanBadge(resource.pan_type)}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-500">网盘链接</label>
+                        <div class="flex items-center mt-1">
+                            <input type="text" value="${resource.pan_link || resource.original_link || '-'}" readonly
+                                   class="flex-1 px-3 py-2 bg-gray-50 border rounded-lg text-sm font-mono" id="copyLink">
+                            <button onclick="copyToClipboard()" class="ml-2 px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700">
+                                📋 复制
+                            </button>
+                        </div>
+                    </div>
+                    ${resource.extract_code ? `
+                    <div>
+                        <label class="text-sm text-gray-500">提取码</label>
+                        <div class="flex items-center mt-1">
+                            <input type="text" value="${resource.extract_code}" readonly
+                                   class="px-3 py-2 bg-gray-50 border rounded-lg text-sm font-mono" id="copyPwd">
+                            <button onclick="copyPwd()" class="ml-2 px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700">
+                                📋 复制
+                            </button>
+                        </div>
+                    </div>
+                    ` : ''}
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-sm text-gray-500">状态</label>
+                            <p class="mt-1">${getStatusBadge(resource.status)}</p>
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-500">浏览量</label>
+                            <p class="mt-1 text-lg font-bold text-blue-600">👁️ ${resource.views || 0}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-500">创建时间</label>
+                        <p class="text-gray-600 text-sm">${formatTime(resource.created_at)}</p>
+                    </div>
+                    ${resource.pan_link ? `
+                    <a href="${resource.pan_link}" target="_blank" class="block w-full py-3 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 transition">
+                        🚀 前往网盘
+                    </a>
+                    ` : ''}
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            // 增加浏览量（异步，不阻塞显示）
+            incrementViews(resource.id);
+        }
+
+        // 增加浏览量
+        async function incrementViews(resourceId) {
+            try {
+                // 先获取当前浏览量
+                const { data: current } = await supabase
+                    .from('resources')
+                    .select('views')
+                    .eq('id', resourceId)
+                    .single();
+
+                const newViews = (current?.views || 0) + 1;
+
+                // 更新浏览量
+                await supabase
+                    .from('resources')
+                    .update({ views: newViews })
+                    .eq('id', resourceId);
+
+                // 更新弹窗中的显示
+                const viewsEl = document.querySelector('#modalContent label:text("浏览量") + p');
+                if (viewsEl) {
+                    viewsEl.innerHTML = `👁️ ${newViews}`;
+                }
+            } catch (error) {
+                console.error('增加浏览量失败:', error);
+            }
+        }
+
+        // 复制链接
+        function copyToClipboard() {
+            const link = document.getElementById('copyLink').value;
+            navigator.clipboard.writeText(link).then(() => showToast('✅ 链接已复制！'));
+        }
+
+        // 复制提取码
+        function copyPwd() {
+            const pwd = document.getElementById('copyPwd').value;
+            navigator.clipboard.writeText(pwd).then(() => showToast('✅ 提取码已复制！'));
+        }
+
+        // 显示提示
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 2000);
+        }
+
+        // 关闭弹窗
+        function closeModal(event) {
+            if (event.target.id === 'resourceModal') {
+                closeResourceModal();
+            }
+        }
+
+        function closeResourceModal() {
+            const modal = document.getElementById('resourceModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         }
 
         // 启动
