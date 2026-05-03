@@ -367,8 +367,10 @@ class CollectorSystem:
             # 随机延时，避免请求过快
             time.sleep(random.uniform(2, 5))
         
+        # 计算采集到的资源总数
+        total_found = len(all_resources) + self.results['duplicates']
         print(f"\n📊 采集完成:")
-        print(f"   - 原始链接: {sum(len(c.collect_from_source) for c in self.collectors)}")
+        print(f"   - 采集到链接: {total_found}")
         print(f"   - 去重后: {len(all_resources)}")
         print(f"   - 重复跳过: {self.results['duplicates']}")
         
