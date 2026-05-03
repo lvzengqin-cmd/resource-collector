@@ -28,10 +28,23 @@ SHARE_EXPIRE = 0
 EXTRACT_CODE = ""
 
 # ==================== 采集源配置 ====================
+# 可用的资源采集源
 COLLECT_SOURCES = [
+    # 主要资源站 - ys2.lsfa.site (已验证可采集)
     "http://ys2.lsfa.site/",
+    "http://dj.lsfa.site/",
+    
+    # 夸克网盘Kdocs资源
     "https://www.kdocs.cn/l/ca0cFRC5S0UC",
     "https://www.kdocs.cn/l/cllOLe2rFIpX",
-    "http://dj.lsfa.site/",
-    "https://www.quanxinghao.com/5200"
+    
+    # 资源搜索导航
+    "https://www.quanxinghao.com/5200",
+    "https://www.yunpanziyuan.xyz/",
+    "https://www.yunso.net/",
 ]
+
+# ==================== 通知配置 ====================
+# 飞书Webhook地址（可选，用于发送任务完成/失败通知）
+# 获取方式：飞书群设置 -> 群机器人 -> 添加机器人 -> 复制Webhook地址
+FEISHU_WEBHOOK = ""

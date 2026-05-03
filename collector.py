@@ -28,9 +28,17 @@ import urllib.parse
 from config import (
     SUPABASE_URL, SUPABASE_KEY,
     QUARKE_COOKIE, BAIDU_COOKIE, UC_COOKIE, XL_COOKIE,
-    TRANSFER_DIR, AUTO_SHARE, SHARE_EXPIRE, EXTRACT_CODE,
-    COLLECT_SOURCES
+    COLLECT_SOURCES, EXTRACT_CODE, FEISHU_WEBHOOK
 )
+
+# 导入飞书通知模块
+try:
+    from feishu_notifier import init_notifier, notify_success, notify_failure
+except ImportError:
+    # 如果通知模块不存在，定义空函数
+    def init_notifier(*args, **kwargs): pass
+    def notify_success(*args, **kwargs): pass
+    def notify_failure(*args, **kwargs): pass
 
 @dataclass
 class Resource:
@@ -394,10 +402,17 @@ class CollectorSystem:
         """执行采集任务"""
         self.start_time = datetime.now()
         
+        # 初始化飞书通知器
+        init_notifier(FEISHU_WEBHOOK)
+        
         print("=" * 60)
-        print("🚀 每日资源采集系统 v2.1 启动")
+        print("🚀 每日资源采集系统 v2.2 启动")
         print(f"⏰ 开始时间: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"📡 采集源数量: {len(COLLECT_SOURCES)}")
+        if FEISHU_WEBHOOK:
+            print("🔔 飞书通知: 已启用")
+        else:
+            print("🔔 飞书通知: 未配置")
         print("=" * 60)
         
         # 初始化日志
@@ -466,6 +481,16 @@ class CollectorSystem:
         # Bug修复: 保存详细统计信息
         self._save_stats(duration)
         self._log(f"任务完成: 成功{self.results['success']}, 跳过{self.results['skipped']}")
+        
+        # 发送飞书通知
+        notify_success({
+            'total': self.results['total'],
+            'new_count': self.results['success'],
+            'skipped': self.results['skipped'] + self.results['duplicates'],
+            'failed': self.results['failed'],
+            'duration': duration,
+            'sources_count': len(COLLECT_SOURCES)
+        })
     
     def _init_log(self):
         """初始化日志文件"""
