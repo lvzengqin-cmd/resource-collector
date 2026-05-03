@@ -48,3 +48,19 @@ COLLECT_SOURCES = [
 # 飞书Webhook地址（可选，用于发送任务完成/失败通知）
 # 获取方式：飞书群设置 -> 群机器人 -> 添加机器人 -> 复制Webhook地址
 FEISHU_WEBHOOK = ""
+
+# ==================== 转存配置 (方案B) ====================
+# 自动转存的目标文件夹
+TRANSFER_DIR = "资源采集"
+
+# 转存后自动生成分享链接
+AUTO_SHARE = True
+
+# 分享链接有效期（天）
+SHARE_EXPIRE = 7
+
+# 批量转存间隔（秒）
+TRANSFER_DELAY = 5
+
+# 是否启用自动转存（默认关闭，需要手动启用）
+ENABLE_AUTO_TRANSFER = False

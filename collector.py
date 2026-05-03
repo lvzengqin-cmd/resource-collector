@@ -28,7 +28,9 @@ import urllib.parse
 from config import (
     SUPABASE_URL, SUPABASE_KEY,
     QUARKE_COOKIE, BAIDU_COOKIE, UC_COOKIE, XL_COOKIE,
-    COLLECT_SOURCES, EXTRACT_CODE, FEISHU_WEBHOOK
+    COLLECT_SOURCES, EXTRACT_CODE, FEISHU_WEBHOOK,
+    ENABLE_AUTO_TRANSFER, TRANSFER_DIR, TRANSFER_DELAY,
+    AUTO_SHARE, SHARE_EXPIRE
 )
 
 # 导入飞书通知模块
@@ -406,13 +408,17 @@ class CollectorSystem:
         init_notifier(FEISHU_WEBHOOK)
         
         print("=" * 60)
-        print("🚀 每日资源采集系统 v2.2 启动")
+        print("🚀 每日资源采集系统 v2.3 启动")
         print(f"⏰ 开始时间: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"📡 采集源数量: {len(COLLECT_SOURCES)}")
         if FEISHU_WEBHOOK:
             print("🔔 飞书通知: 已启用")
         else:
             print("🔔 飞书通知: 未配置")
+        if ENABLE_AUTO_TRANSFER:
+            print("📦 自动转存: 已启用")
+        else:
+            print("📦 自动转存: 已禁用 (方案B)")
         print("=" * 60)
         
         # 初始化日志
@@ -491,6 +497,48 @@ class CollectorSystem:
             'duration': duration,
             'sources_count': len(COLLECT_SOURCES)
         })
+        
+        # 方案B: 自动转存 (如果启用)
+        if ENABLE_AUTO_TRANSFER and self.results['success'] > 0:
+            self._auto_transfer()
+    
+    def _auto_transfer(self):
+        """自动转存入库的资源"""
+        try:
+            from transfer import batch_transfer, Resource as TransferResource
+            
+            print("\n" + "=" * 60)
+            print("📦 方案B: 开始自动转存...")
+            print("=" * 60)
+            
+            # 获取最近入库的资源
+            from database import DatabaseManager
+            db = DatabaseManager()
+            recent_resources = db.get_recent_resources(limit=20)
+            
+            if not recent_resources:
+                print("   无待转存资源")
+                return
+            
+            # 转换为转存资源
+            resources_to_transfer = []
+            for res in recent_resources:
+                resources_to_transfer.append(TransferResource(
+                    title=res.get('title', ''),
+                    pan_type=res.get('pan_type', ''),
+                    pan_link=res.get('pan_link', ''),
+                    extract_code=res.get('extract_code')
+                ))
+            
+            # 执行批量转存
+            from config import TRANSFER_DELAY
+            results = batch_transfer(resources_to_transfer, delay=TRANSFER_DELAY)
+            
+            success_count = sum(1 for r in results if r.success)
+            print(f"\n✅ 转存完成: {success_count}/{len(results)} 成功")
+            
+        except Exception as e:
+            print(f"\n⚠️ 自动转存失败: {e}")
     
     def _init_log(self):
         """初始化日志文件"""
