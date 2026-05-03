@@ -190,35 +190,77 @@
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold">⏰ 定时任务配置</h3>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-sm text-gray-600 mb-1">执行频率</label>
                     <select id="cronFrequency" onchange="toggleCustomTime()" class="w-full px-3 py-2 border rounded-lg">
-                        <option value="daily">每天</option>
+                        <option value="daily">每天一次</option>
                         <option value="twice">每天两次</option>
                         <option value="three">每天三次</option>
-                        <option value="custom">自定义</option>
+                        <option value="four">每天四次</option>
+                        <option value="custom">自定义Cron</option>
                     </select>
                 </div>
-                <div id="customTimeSection" class="hidden">
-                    <label class="block text-sm text-gray-600 mb-1">Cron表达式</label>
-                    <input id="cronExpression" type="text" class="w-full px-3 py-2 border rounded-lg" placeholder="0 9 * * *">
-                    <p class="text-xs text-gray-400 mt-1">格式: 分 时 日 月 周 (UTC时间)</p>
+                
+                <!-- 每天一次的时间选择 -->
+                <div id="dailyTimeSection">
+                    <label class="block text-sm text-gray-600 mb-1">执行时间</label>
+                    <input id="time1" type="time" class="w-full px-3 py-2 border rounded-lg" value="09:00">
                 </div>
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">执行时段</label>
-                    <select id="executionPeriod" class="w-full px-3 py-2 border rounded-lg">
-                        <option value="morning">上午 (6:00-12:00)</option>
-                        <option value="afternoon">下午 (12:00-18:00)</option>
-                        <option value="evening">晚上 (18:00-24:00)</option>
-                        <option value="all">全天</option>
-                    </select>
+                
+                <!-- 每天两次的时间选择 -->
+                <div id="twiceTimeSection" class="hidden">
+                    <label class="block text-sm text-gray-600 mb-1">第一次执行</label>
+                    <input id="time1_twice" type="time" class="w-full px-3 py-2 border rounded-lg" value="09:00">
+                </div>
+                <div id="twiceTime2Section" class="hidden">
+                    <label class="block text-sm text-gray-600 mb-1">第二次执行</label>
+                    <input id="time2_twice" type="time" class="w-full px-3 py-2 border rounded-lg" value="14:00">
+                </div>
+                
+                <!-- 每天三次的时间选择 -->
+                <div id="threeTimeSection" class="hidden">
+                    <label class="block text-sm text-gray-600 mb-1">第一次执行</label>
+                    <input id="time1_three" type="time" class="w-full px-3 py-2 border rounded-lg" value="09:00">
+                </div>
+                <div id="threeTime2Section" class="hidden">
+                    <label class="block text-sm text-gray-600 mb-1">第二次执行</label>
+                    <input id="time2_three" type="time" class="w-full px-3 py-2 border rounded-lg" value="14:00">
+                </div>
+                <div id="threeTime3Section" class="hidden">
+                    <label class="block text-sm text-gray-600 mb-1">第三次执行</label>
+                    <input id="time3_three" type="time" class="w-full px-3 py-2 border rounded-lg" value="20:00">
+                </div>
+                
+                <!-- 每天四次的时间选择 -->
+                <div id="fourTimeSection" class="hidden">
+                    <label class="block text-sm text-gray-600 mb-1">第一次执行</label>
+                    <input id="time1_four" type="time" class="w-full px-3 py-2 border rounded-lg" value="08:00">
+                </div>
+                <div id="fourTime2Section" class="hidden">
+                    <label class="block text-sm text-gray-600 mb-1">第二次执行</label>
+                    <input id="time2_four" type="time" class="w-full px-3 py-2 border rounded-lg" value="12:00">
+                </div>
+                <div id="fourTime3Section" class="hidden">
+                    <label class="block text-sm text-gray-600 mb-1">第三次执行</label>
+                    <input id="time3_four" type="time" class="w-full px-3 py-2 border rounded-lg" value="17:00">
+                </div>
+                <div id="fourTime4Section" class="hidden">
+                    <label class="block text-sm text-gray-600 mb-1">第四次执行</label>
+                    <input id="time4_four" type="time" class="w-full px-3 py-2 border rounded-lg" value="21:00">
+                </div>
+                
+                <!-- 自定义Cron表达式 -->
+                <div id="customTimeSection" class="hidden col-span-2">
+                    <label class="block text-sm text-gray-600 mb-1">Cron表达式 (北京时间)</label>
+                    <input id="cronExpression" type="text" class="w-full px-3 py-2 border rounded-lg" placeholder="0 9,14 * * *">
+                    <p class="text-xs text-gray-400 mt-1">格式: 分 时 日 月 周<br>示例: "0 9,14 * * *" 表示每天9点和14点执行</p>
                 </div>
             </div>
             <div class="mt-4 flex items-center justify-between">
                 <div class="text-sm">
                     <span class="text-gray-500">当前配置：</span>
-                    <span id="currentCron" class="font-mono bg-gray-100 px-2 py-1 rounded">每天 09:00 (北京时间)</span>
+                    <span id="currentCron" class="font-mono bg-gray-100 px-2 py-1 rounded">每天一次 09:00 (北京时间)</span>
                 </div>
                 <button onclick="saveCronConfig()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
                     💾 保存定时配置
@@ -440,59 +482,117 @@
 
                 if (data && data.value) {
                     const config = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
-                    document.getElementById('cronFrequency').value = config.frequency || 'daily';
-                    document.getElementById('executionPeriod').value = config.period || 'morning';
-                    document.getElementById('cronExpression').value = config.expression || '0 1 * * *';
+                    const frequency = config.frequency || 'daily';
+                    document.getElementById('cronFrequency').value = frequency;
+                    document.getElementById('cronExpression').value = config.expression || '0 9 * * *';
                     
-                    if (config.frequency === 'custom') {
-                        document.getElementById('customTimeSection').classList.remove('hidden');
-                        document.getElementById('customTimeSection').classList.add('flex');
+                    // 填充各频率的时间值
+                    const times = config.times || [];
+                    if (times[0]) {
+                        document.getElementById('time1').value = times[0];
+                        document.getElementById('time1_twice').value = times[0];
+                        document.getElementById('time1_three').value = times[0];
+                        document.getElementById('time1_four').value = times[0];
+                    }
+                    if (times[1]) {
+                        document.getElementById('time2_twice').value = times[1];
+                        document.getElementById('time2_three').value = times[1];
+                        document.getElementById('time2_four').value = times[1];
+                    }
+                    if (times[2]) {
+                        document.getElementById('time3_three').value = times[2];
+                        document.getElementById('time3_four').value = times[2];
+                    }
+                    if (times[3]) {
+                        document.getElementById('time4_four').value = times[3];
                     }
                     
+                    // 显示对应的时间选择区域
+                    toggleCustomTime();
+                    
                     updateCronDisplay(config);
+                } else {
+                    // 默认显示每天一次的时间选择
+                    toggleCustomTime();
                 }
             } catch (error) {
                 console.log('加载定时配置失败，使用默认配置');
+                toggleCustomTime();
             }
         }
 
         function toggleCustomTime() {
             const frequency = document.getElementById('cronFrequency').value;
-            const customSection = document.getElementById('customTimeSection');
-            if (frequency === 'custom') {
-                customSection.classList.remove('hidden');
-                customSection.classList.add('flex');
-            } else {
-                customSection.classList.add('hidden');
-                customSection.classList.remove('flex');
+            
+            // 隐藏所有时间选择区域
+            const sections = ['dailyTimeSection', 'twiceTimeSection', 'twiceTime2Section', 
+                             'threeTimeSection', 'threeTime2Section', 'threeTime3Section',
+                             'fourTimeSection', 'fourTime2Section', 'fourTime3Section', 'fourTime4Section',
+                             'customTimeSection'];
+            sections.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.classList.add('hidden');
+                    el.classList.remove('flex', 'block');
+                }
+            });
+            
+            // 显示对应的输入框
+            switch(frequency) {
+                case 'daily':
+                    document.getElementById('dailyTimeSection').classList.remove('hidden');
+                    break;
+                case 'twice':
+                    document.getElementById('twiceTimeSection').classList.remove('hidden');
+                    document.getElementById('twiceTime2Section').classList.remove('hidden');
+                    break;
+                case 'three':
+                    document.getElementById('threeTimeSection').classList.remove('hidden');
+                    document.getElementById('threeTime2Section').classList.remove('hidden');
+                    document.getElementById('threeTime3Section').classList.remove('hidden');
+                    break;
+                case 'four':
+                    document.getElementById('fourTimeSection').classList.remove('hidden');
+                    document.getElementById('fourTime2Section').classList.remove('hidden');
+                    document.getElementById('fourTime3Section').classList.remove('hidden');
+                    document.getElementById('fourTime4Section').classList.remove('hidden');
+                    break;
+                case 'custom':
+                    document.getElementById('customTimeSection').classList.remove('hidden');
+                    document.getElementById('customTimeSection').classList.add('block');
+                    break;
             }
         }
 
         function updateCronDisplay(config) {
             const display = document.getElementById('currentCron');
             const frequency = config.frequency || 'daily';
-            const period = config.period || 'morning';
-            
-            const periodNames = {
-                'morning': '上午',
-                'afternoon': '下午',
-                'evening': '晚上',
-                'all': '全天'
-            };
             
             const frequencyNames = {
-                'daily': '每天',
+                'daily': '每天一次',
                 'twice': '每天两次',
                 'three': '每天三次',
+                'four': '每天四次',
                 'custom': '自定义'
             };
             
             let timeText = '';
             switch(frequency) {
-                case 'daily': timeText = '09:00'; break;
-                case 'twice': timeText = '09:00, 14:00'; break;
-                case 'three': timeText = '09:00, 14:00, 20:00'; break;
-                case 'custom': timeText = config.expression || '自定义'; break;
+                case 'daily': 
+                    timeText = config.times?.[0] || '09:00'; 
+                    break;
+                case 'twice': 
+                    timeText = (config.times || ['09:00', '14:00']).join(', '); 
+                    break;
+                case 'three': 
+                    timeText = (config.times || ['09:00', '14:00', '20:00']).join(', '); 
+                    break;
+                case 'four': 
+                    timeText = (config.times || ['08:00', '12:00', '17:00', '21:00']).join(', '); 
+                    break;
+                case 'custom': 
+                    timeText = config.expression || '自定义'; 
+                    break;
             }
             
             display.textContent = `${frequencyNames[frequency]} ${timeText} (北京时间)`;
@@ -500,31 +600,74 @@
 
         async function saveCronConfig() {
             const frequency = document.getElementById('cronFrequency').value;
-            const period = document.getElementById('executionPeriod').value;
             const expression = document.getElementById('cronExpression').value;
 
-            // 计算UTC时间的cron表达式
-            let utcExpression = '0 1 * * *'; // 默认北京时间9点 = UTC 1点
+            // 获取各频率的时间
+            let times = [];
+            let bjCron = '';
+            
             switch(frequency) {
                 case 'daily':
-                    utcExpression = '0 1 * * *';
+                    times = [document.getElementById('time1').value || '09:00'];
                     break;
                 case 'twice':
-                    utcExpression = '0 1,6 * * *'; // UTC 1点和6点
+                    times = [
+                        document.getElementById('time1_twice').value || '09:00',
+                        document.getElementById('time2_twice').value || '14:00'
+                    ];
                     break;
                 case 'three':
-                    utcExpression = '0 1,6,12 * * *'; // UTC 1点、6点、12点
+                    times = [
+                        document.getElementById('time1_three').value || '09:00',
+                        document.getElementById('time2_three').value || '14:00',
+                        document.getElementById('time3_three').value || '20:00'
+                    ];
+                    break;
+                case 'four':
+                    times = [
+                        document.getElementById('time1_four').value || '08:00',
+                        document.getElementById('time2_four').value || '12:00',
+                        document.getElementById('time3_four').value || '17:00',
+                        document.getElementById('time4_four').value || '21:00'
+                    ];
                     break;
                 case 'custom':
-                    utcExpression = expression || '0 1 * * *';
+                    times = [];
+                    bjCron = expression;
                     break;
+            }
+
+            // 北京时间转UTC (北京时间 - 8小时)
+            function bjToUtc(time) {
+                const [h, m] = time.split(':').map(Number);
+                const utcH = (h - 8 + 24) % 24;
+                return `${String(m).padStart(2, '0')} ${utcH}`;
+            }
+
+            // 生成Cron表达式
+            if (frequency === 'custom') {
+                // 自定义: 直接使用表达式，将北京时间转换为UTC
+                const parts = expression.split(' ');
+                if (parts.length >= 5) {
+                    const bjHours = parts[1].split(',').map(h => {
+                        const hNum = parseInt(h);
+                        const utcH = (hNum - 8 + 24) % 24;
+                        return String(utcH);
+                    });
+                    bjCron = `${parts[0]} ${bjHours.join(',')} ${parts[2]} ${parts[3]} ${parts[4]}`;
+                } else {
+                    bjCron = expression;
+                }
+            } else {
+                const utcParts = times.map(t => bjToUtc(t));
+                bjCron = `${utcParts.join(',')} * * *`;
             }
 
             const config = {
                 frequency,
-                period,
-                expression,
-                utc_cron: utcExpression,
+                times,
+                expression: bjCron,
+                utc_cron: bjCron,
                 updated_at: new Date().toISOString()
             };
 
