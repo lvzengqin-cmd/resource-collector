@@ -6,10 +6,6 @@
   NODE_VERSION = "18"
   PYTHON_VERSION = "3.10"
 
-# 定时任务钩子 - Netlify 会在指定时间触发
-[build.edge_functions]
-  directory = "dist"
-
 # 自动部署设置
 [build.processing]
   skip_processing = false
