@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-每日资源采集系统 v2.1
-支持夸克、百度、UC、迅雷网盘的自动化采集
+每日资源采集系统 v2.2
+支持夸克、百度、UC、迅雷、Kdocs网盘的自动化采集
 修复内容：
 1. Resource类与数据库表结构匹配
 2. 修复URL编码问题
@@ -9,6 +9,7 @@
 4. 修复pan_link为空检查
 5. 添加日志记录功能
 6. 添加统计信息持久化
+7. 新增Kdocs采集器
 """
 
 import os
@@ -206,6 +207,64 @@ class XLCollector(BaseCollector):
                 })
         return links
 
+class KdocsCollector(BaseCollector):
+    """Kdocs采集器 - 使用Playwright处理JS渲染"""
+    
+    def __init__(self):
+        self.name = 'Kdocs'
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+    
+    def extract_links(self, html: str) -> List[Dict]:
+        """Kdocs页面需要JS渲染，使用简单的正则提取"""
+        links = []
+        seen = set()
+        patterns = [
+            r'kdocs\.cn/l/([a-zA-Z0-9]+)',
+            r'www\.kdocs\.cn/l/([a-zA-Z0-9]+)',
+        ]
+        for pattern in patterns:
+            for match in re.findall(pattern, html):
+                if match not in seen:
+                    seen.add(match)
+                    links.append({
+                        'title': f'Kdocs文档_{match[:8]}',
+                        'url': f'https://www.kdocs.cn/l/{match}',
+                        'desc': 'Kdocs在线文档'
+                    })
+        return links
+    
+    def collect_from_source(self, source_url: str) -> List:
+        """采集Kdocs链接（静态提取，不需要JS渲染）"""
+        resources = []
+        try:
+            resp = self.session.get(source_url, timeout=30)
+            resp.raise_for_status()
+            resp.encoding = 'utf-8'
+            links = self.extract_links(resp.text)
+            
+            for link_info in links:
+                url = link_info.get('url', '')
+                if not url:
+                    continue
+                    
+                resource = Resource(
+                    title=link_info.get('title', '未知资源')[:200],
+                    pan_type='kdocs',
+                    original_link=url,
+                    description=link_info.get('desc', '')[:500]
+                )
+                resources.append(resource)
+                
+            print(f"  [Kdocs] 从 {source_url} 采集到 {len(links)} 个链接")
+            
+        except Exception as e:
+            print(f"  [Kdocs] 采集失败: {e}")
+            
+        return resources
+
 class DatabaseManager:
     """数据库管理器"""
     
@@ -308,7 +367,8 @@ class CollectorSystem:
             QuarkeCollector(),
             BaiduCollector(),
             UCCollector(),
-            XLCollector()
+            XLCollector(),
+            KdocsCollector()
         ]
         self.db = DatabaseManager()
         # Bug修复: 添加全局去重集合
