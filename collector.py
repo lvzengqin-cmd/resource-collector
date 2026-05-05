@@ -512,10 +512,20 @@ class CollectorSystem:
             print("=" * 60)
             
             # 获取最近入库的资源
-            from database import DatabaseManager
-            db = DatabaseManager()
-            recent_resources = db.get_recent_resources(limit=20)
+            from config import SUPABASE_URL, SUPABASE_KEY
+            import requests
+            headers = {
+                'apikey': SUPABASE_KEY,
+                'Authorization': f'Bearer {SUPABASE_KEY}'
+            }
+            url = f"{SUPABASE_URL}/rest/v1/resources?select=*&order=created_at.desc&limit=20"
+            resp = requests.get(url, headers=headers, timeout=15)
             
+            if resp.status_code != 200:
+                print("   ⚠️ 获取资源失败")
+                return
+                
+            recent_resources = resp.json()
             if not recent_resources:
                 print("   无待转存资源")
                 return
