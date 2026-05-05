@@ -26,6 +26,7 @@ TRANSFER_DIR = "/CY资源宝库"
 AUTO_SHARE = True
 SHARE_EXPIRE = 0
 EXTRACT_CODE = ""
+TRANSFER_DELAY = 5
 
 # ==================== 采集源配置 ====================
 # 可用的资源采集源
@@ -50,17 +51,5 @@ COLLECT_SOURCES = [
 FEISHU_WEBHOOK = ""
 
 # ==================== 转存配置 (方案B) ====================
-# 自动转存的目标文件夹
-TRANSFER_DIR = "资源采集"
-
-# 转存后自动生成分享链接
-AUTO_SHARE = True
-
-# 分享链接有效期（天）
-SHARE_EXPIRE = 7
-
-# 批量转存间隔（秒）
-TRANSFER_DELAY = 5
-
 # 是否启用自动转存（默认关闭，需要手动启用）
 ENABLE_AUTO_TRANSFER = False
